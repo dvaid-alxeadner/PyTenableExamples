@@ -1,4 +1,6 @@
 import sys
+from types import AsyncGeneratorType
+sys.path.append('../common')
 import clsConfig
 import tenable.sc
 import pprint
@@ -150,9 +152,44 @@ try:
 
         arrrepo=vulns['repository']
         repo=arrrepo['name']
-        #print(cpe+'|'+solution+'|'+remediation+'|'+score+'|'+vpr+'|'+ip+'|'+dns+'|'+ntbios+'|'+OS+'|'+mac+'|'+agent+'|'+repo)
         csvfile.writelines([solution+'|',remediation+'|',score+'|',vpr+'|',ip+'|',dns+'|',ntbios+'|',OS+'|',cpe+'|',mac+'|',agent+'|',repo+'\n'])
       listremed.append(remed)
+    csvfile.close()
+
+  def getStationsBy38689(repo=None):
+    
+    
+    
+    csvfile=open('Stations.csv','w+')
+    csvfile.write('ip|dns|ntbios|mac|OS|user|pid|agent|repository\n')
+
+    for hosts in scptbn.analysis.vulns(('repositoryIDs','=',repo),('pluginID','=','38689')):
+      pid=hosts['pluginID']
+      ip=hosts['ip']
+      dns=hosts['dnsName']
+      ntbios=hosts['netbiosName']
+      mac=hosts['macAddress']
+
+      
+      if hosts['operatingSystem']:
+        OS=hosts['operatingSystem']
+      else:
+        OS=''
+
+      if hosts['uuid']:
+        agent=hosts['uuid']
+      else:
+        agent='No Agent'
+
+      arrrepo=hosts['repository']
+      repo=arrrepo['name']
+
+      output=hosts['pluginText']
+
+      usertmp=output.split('<plugin_output>\nLast Successful logon : ')
+      useraux=usertmp[1].split('\n</plugin_output>')
+
+      csvfile.writelines([ip+'|'+dns+'|'+ntbios+'|'+mac+'|'+OS+'|'+useraux[0]+'|'+pid+'|'+agent+'|'+repo+'\n'])      
     csvfile.close()
 
   '''
@@ -168,13 +205,13 @@ try:
   def getAdminGroupsByStation10902(repo=None):
     if repo is not None:
       try:
-        repo.split(",")
+          repo.split(",")
       except Exception as e:
         print('Exception '+str(e))
         sys.exit(0)
 
     csvfile=open('AdminGroupsByStation.csv','w+')
-    csvfile.write('ip|dns|ntbios|mac|OS|user|pid|agent|repository\n')
+    csvfile.write('ip|dns|ntbios|mac|OS|user|type|pid|agent|repository\n')
     
     for admins in scptbn.analysis.vulns(('repositoryIDs','=',repo),('pluginID','=','10902')):
       pid=admins['pluginID']
@@ -182,7 +219,6 @@ try:
       dns=admins['dnsName']
       ntbios=admins['netbiosName']
       mac=admins['macAddress']
-
       if admins['operatingSystem']:
         OS=admins['operatingSystem']
       else:
@@ -213,17 +249,120 @@ try:
           else:
             typeE='Null'
 
-          print(ip+'|'+dns+'|'+ntbios+'|'+mac+'|'+OS+'|'+user+'|'+typeE+'|'+pid+'|'+agent+'|'+repo)
           csvfile.writelines([ip+'|'+dns+'|'+ntbios+'|'+mac+'|'+OS+'|'+user+'|'+typeE+'|'+pid+'|'+agent+'|'+repo+'\n'])
           
     csvfile.close()
-  
-  #getWindowsIPv4By24272("MAQUINAS")
-  #getUNIXIPv4By25203("SERVIDORES")
-  #listipTigo=[0.0.0.0]
-  #getPatchInfo("SERVIDORES",listipTigo)
 
-  getAdminGroupsByStation10902('4,14')
+  def getUNIXUsersBy95928(repo=None):
+    
+    if repo is not None:
+      try:
+        if (type(repo) == str) :
+          repo.split(",")
+      except Exception as e:
+        print('Exception '+str(e))
+        sys.exit(0)
+    
+    usrliststr=[]
+
+    csvfile=open('UnixUserByRepo.csv','w+')
+    
+    for users in scptbn.analysis.vulns(('repositoryIDs','=',repo),('pluginID','=','95928')):
+      
+      output=users['pluginText']
+      preusrlist=output.split('\n\n')
+    
+      for stripcomp in preusrlist:
+        if 'User   ' in stripcomp:
+          indiviuserlist=stripcomp.split('\n')
+
+          account=indiviuserlist[0]
+
+          accounttmp=account.split(':')
+          account=accounttmp[1].strip()
+
+          scriptbash=indiviuserlist[2]
+
+          scriptbashtmp=scriptbash.split(':')
+          scriptbash=scriptbashtmp[1].strip()
+
+          group=indiviuserlist[3]
+
+          grouptmp=group.split(':')
+          group=grouptmp[1].strip()
+
+          ip=users['ip']
+          arrrepo=users['repository']
+          repo=arrrepo['name']
+          
+          csvfile.writelines([ip+'|'+account+'|'+scriptbash+'|'+group+'||'+repo+'\n'])
+          
+    csvfile.close()
+
+  def getServersLog4j(repo=None):
+
+    if repo is not None:
+      try:
+        if (type(repo) == str) :
+          repo.split(",")
+      except Exception as e:
+        print('Exception '+str(e))
+        sys.exit(0)
+    
+    srvliststr=[]
+    csvfile=open('ServersByLog4j.csv','w+')
+    plugins='156103,156002,156103'
+    for servers in scptbn.analysis.vulns(('repositoryIDs','=',repo),('pluginID','=','156032,155999,156002')):
+      
+      output=servers['pluginText']
+
+      idxp=output.find('Path              :')
+      pathtmp=output[idxp:len(output)]
+      pathtmp=pathtmp.split('\n')
+      path=pathtmp[0]
+
+      idx=output.find('Installed version :')
+      log4jtmp=output[idx:len(output)]
+      log4jtmp=log4jtmp.split('\n')
+      log4jv=log4jtmp[0]
+
+      pid=servers['pluginID']
+      ip=servers['ip']
+
+      if '10.1.108.92' in ip:
+        ip
+
+      dns=servers['dnsName']
+      ntbios=servers['netbiosName']
+      mac=servers['macAddress']
+      risk=servers['riskFactor']
+
+      if servers['operatingSystem']:
+        OS=servers['operatingSystem']
+      else:
+        OS=''
+
+      if servers['uuid']:
+        agent=servers['uuid']
+      else:
+        agent='No Agent'
+
+      arrrepo=servers['repository']
+      repository=arrrepo['name']
+
+      print(ip+'|'+dns+'|'+ntbios+'|'+mac+'|'+OS+'|'+risk+'|'+log4jv+'|'+path+'|'+pid+'|'+agent+'|'+repository)
+      csvfile.writelines([ip+'|'+dns+'|'+ntbios+'|'+mac+'|'+OS+'|'+risk+'|'+log4jv+'|'+path+'|'+pid+'|'+agent+'|'+repository+'\n'])
+    csvfile.close()
+
+  
+  #getWindowsIPv4By24272("SERVIDORES")
+  #getUNIXIPv4By25203("SERVIDORES")
+  #listip=['1.1.1.1','1.1.1.1']
+  #getPatchInfo("SERVIDORES",listip)
+  getAdminGroupsByStation10902('2,3')
+  #getStationsBy38689(4)
+  #getUNIXUsersBy95928('2,3,8') 
+  #getServersLog4j('2,3,8')
 
 except Exception as e:
   print('Exception '+str(e))
